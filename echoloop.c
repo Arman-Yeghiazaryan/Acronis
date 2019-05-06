@@ -13,17 +13,40 @@ struct mess{
 	long type;
 };
 
+struct list{
+	struct list* prev;
+	char* data;
+	struct list* next;
+}*head, *point;
+
 struct arg{
 	long type;
-	char* data;
-}args;
+	struct list* data;
+}argh, buf_arg;
 
 int main(int argc, char** argv){
 	struct mess buf1, buf2, ready, start;
 	int ind_n = 0;
 	int st;
-	int post = 10, i = 0;
-	int key = 10;
+	int i = 0;
+	head->prev = NULL;
+	head->data = argv[1];
+	head->next = NULL;
+	if (argc > 2){
+		struct list* buf;
+		head->next = point;
+		point->data = argv[2];
+		point->prev = head;
+		for(i = 3; i < argc; i++){
+			buf = (struct list*)calloc(1, sizeof(struct list));
+			buf->prev = point;
+			point->next = buf;
+			buf->data = argv[i];
+			point = buf;
+		}
+		point->next = NULL;
+	}
+	int key = ftok(argv[0], 0);
 	int id = msgget(key, 0777|IPC_CREAT);
 
 	int semid = semget(key, 1, 0777|IPC_CREAT);
@@ -61,17 +84,30 @@ int main(int argc, char** argv){
 	}
 	semop(semid, &sops[2], 1);
 	if (ind_n == 1){
-		while(post > 0){
-			for(i = 1; i < argc; i++){
-				printf("%s ", argv[i]);
+		while(1){
+			point = head;
+			while(point->next != NULL){
+				printf("%s ", point->data);
+				if (strcmp(point->data, "exit") == 0){
+					printf("\necholoop finished working!");
+					st = msgrcv(id, &start, 0, 1, 0);
+					exit;
+				}
+				point = point->next;
 			}
-			post--;
+			printf("%s\n", point->data);
+			ind = msgrcv(id, &buf_arg, sizeof(int), 3, IPC_NOWAIT);
+			if (ind != -1){
+				point->next = buf_arg.data;
+				(buf_arg.data)->prev = point;
+			}
 			sleep(1);
 		}
-		st = msgrcv(id, &start, 0, 1, 0);
 	}
 	if (ind_n == 2){
-		
+		argh.type = 3;
+		argh.data = head;
+		st = msgsnd(id, &argh, sizeof(struct list*), 0);
 		printf("echoloop for ");
 		for (i = 1; i < argc; i++){
 			printf("%s ", argv[i]);
